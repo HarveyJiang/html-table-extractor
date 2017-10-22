@@ -1,7 +1,8 @@
-from bs4 import BeautifulSoup, Tag
-import os
 import csv
-import pdb
+import os
+from itertools import izip, izip_longest
+
+from bs4 import BeautifulSoup, Tag
 
 
 class Extractor(object):
@@ -36,13 +37,13 @@ class Extractor(object):
                     # check multiple rows
                     # pdb.set_trace()
                     row_span = int(cell.get('rowspan')) if cell.get('rowspan') else 1
-                    
+
                     # try updating smallest_row_span
                     smallest_row_span = min(smallest_row_span, row_span)
-                    
+
                     # check multiple columns
                     col_span = int(cell.get('colspan')) if cell.get('colspan') else 1
-                    
+
                     # find the right index
                     while True:
                         if self._check_cell_validity(row_ind, col_ind):
@@ -63,6 +64,27 @@ class Extractor(object):
     def return_list(self):
         return self._output
 
+    def to_list_by_row(self, check_header_length=2):
+        rows, headers, indexes = [], [], []
+        for i, head in enumerate(self._output):
+            if any(head):
+                headers.append(head)
+                indexes.append(i)
+                if not check_header_length or len(headers) == check_header_length:
+                    break
+        index, header = max(enumerate(headers), key=lambda x: len(set(x[1])))
+        if header:
+            for d in self._output[indexes[index] + 1:]:
+                rows.append(dict(izip_longest(header, d)))
+        return rows
+
+    def to_dict_by_col(self):
+        col_dict = {}
+        for d in self._output:
+            i = iter(d)
+            col_dict.update(dict(izip(i, i)))
+        return col_dict
+
     def write_to_csv(self, path='.'):
         with open(os.path.join(path, 'output.csv'), 'w') as csv_file:
             table_writer = csv.writer(csv_file)
@@ -74,7 +96,7 @@ class Extractor(object):
         """
         check if a rectangle (i, j, height, width) can be put into self.output
         """
-        return all(self._check_cell_validity(ii, jj) for ii in range(i, i+height) for jj in range(j, j+width))
+        return all(self._check_cell_validity(ii, jj) for ii in range(i, i + height) for jj in range(j, j + width))
 
     def _check_cell_validity(self, i, j):
         """
@@ -90,8 +112,8 @@ class Extractor(object):
 
     def _insert(self, i, j, height, width, val):
         # pdb.set_trace()
-        for ii in range(i, i+height):
-            for jj in range(j, j+width):
+        for ii in range(i, i + height):
+            for jj in range(j, j + width):
                 self._insert_cell(ii, jj, val)
 
     def _insert_cell(self, i, j, val):
